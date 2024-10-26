@@ -1,4 +1,4 @@
-package apidocbuilder
+package htmxdaisyuigo
 
 import (
 	"fmt"
@@ -9,6 +9,7 @@ import (
 	"github.com/julvo/htmlgo/attributes"
 	"github.com/suifengpiao14/apidocbuilder"
 	"github.com/suifengpiao14/funcs"
+	interattr "github.com/suifengpiao14/htmxdaisyuigo/attributes"
 )
 
 func NewHtmxForm(api apidocbuilder.Api) HtmxForm {
@@ -75,6 +76,10 @@ func AttrHxExt(data interface{}, templs ...string) attributes.Attribute {
 	return Attr("hx-ext", data, templs...)
 }
 
+// hx-get 生成
+func HxGet(value string) attributes.Attribute {
+	return Attr("hx-ext", value)
+}
 func Attr(name string, data interface{}, templs ...string) attributes.Attribute {
 	tplName := funcs.ToCamel(name)
 	attr := attributes.Attribute{Data: data, Name: tplName}
@@ -132,7 +137,7 @@ var (
 		{Type: "checkbox", Format: apidocbuilder.Format{"checkbox"}, SortDesc: 99},
 		{Type: "color", Format: apidocbuilder.Format{"color"}, SortDesc: 98},
 		{Type: "date", Format: apidocbuilder.Format{"date"}, SortDesc: 97},
-		{Type: "datetime-local", Format: Format{"datetime"}, SortDesc: 96},
+		{Type: "datetime-local", Format: apidocbuilder.Format{"datetime"}, SortDesc: 96},
 		{Type: "time", Format: apidocbuilder.Format{"time"}, SortDesc: 95},
 		{Type: "week", Format: apidocbuilder.Format{"week"}, SortDesc: 94},
 		{Type: "month", Format: apidocbuilder.Format{"month"}, SortDesc: 93},
@@ -169,43 +174,11 @@ func (tag TagInput) Format2Type(formats ...string) string {
 	return "text"
 }
 
-type Class []string
-
-func (c *Class) Add(class string) {
-	if *c == nil {
-		*c = make([]string, 0)
-	}
-	*c = append(*c, class)
-}
-
-func (c *Class) Remove(classes ...string) {
-	m := make(map[string]bool)
-	for _, v := range classes {
-		m[v] = true
-	}
-
-	tmpCls := make([]string, 0)
-	for _, v := range *c {
-		if !m[v] {
-			tmpCls = append(tmpCls, v)
-		}
-	}
-	*c = tmpCls
-}
-
-func (c *Class) Clearn() {
-	*c = make(Class, 0)
-}
-
-func (c Class) Attr() attributes.Attribute {
-	return attributes.Class_(c...)
-}
-
 type TagLabel struct {
 	Label string `json:"label"`
 	TagRequired
-	Class       Class `json:"class"`
-	RemoveClass Class `json:"removeClass"`
+	Class       interattr.Class `json:"class"`
+	RemoveClass interattr.Class `json:"removeClass"`
 }
 
 const (
@@ -216,7 +189,7 @@ func (t TagLabel) Html() (html htmlgo.HTML) {
 	t.Class.Add(class_label)
 	t.Class.Remove(t.RemoveClass...)
 	attrs := make([]attributes.Attribute, 0)
-	attrs = append(attrs, t.Class.Attr())
+	attrs = append(attrs, *t.Class.Attr())
 	html = htmlgo.Label(attrs, htmlgo.Text(t.Label), t.TagRequired.Html())
 	return html
 }
@@ -317,7 +290,7 @@ func (tag TagButton) Html() (html htmlgo.HTML) {
 	return html
 }
 
-func Parameter2FormChidren(p Parameter) (html htmlgo.HTML) {
+func Parameter2FormChidren(p apidocbuilder.Parameter) (html htmlgo.HTML) {
 	if p.Name == "" {
 		return
 	}
@@ -330,7 +303,7 @@ func Parameter2FormChidren(p Parameter) (html htmlgo.HTML) {
 	}
 	schema := p.Schema
 	format := p.GetFormat()
-	if p.Type == "string" && (format.IsNil() || format.Has("string")) && (schema.MaxLength == 0 || schema.MaxLength >= Schema_MaxLength_textArea) { // 长度不限制，或者过长，使用textarea
+	if p.Type == "string" && (format.IsNil() || format.Has("string")) && (schema.MaxLength == 0 || schema.MaxLength >= apidocbuilder.Schema_MaxLength_textArea) { // 长度不限制，或者过长，使用textarea
 		return Parameter2TextArea(p).Html()
 	}
 
@@ -338,7 +311,7 @@ func Parameter2FormChidren(p Parameter) (html htmlgo.HTML) {
 	return html
 }
 
-func Parameter2TagInput(p Parameter) (tag TagInput) {
+func Parameter2TagInput(p apidocbuilder.Parameter) (tag TagInput) {
 	if p.Name == "" {
 		return
 	}
@@ -365,7 +338,7 @@ const (
 	Schema_textArea_cols = 50 // 50个字符一行
 )
 
-func Parameter2TextArea(p Parameter) (tag TagTextArea) {
+func Parameter2TextArea(p apidocbuilder.Parameter) (tag TagTextArea) {
 	if p.Name == "" {
 		return
 	}
@@ -430,7 +403,7 @@ func (tag TagRadios) Html() (html htmlgo.HTML) {
 	return html
 }
 
-func Parameter2Radios(p Parameter) (tag TagRadios) {
+func Parameter2Radios(p apidocbuilder.Parameter) (tag TagRadios) {
 	if p.Name == "" {
 		return
 	}
@@ -469,7 +442,7 @@ func Parameter2Radios(p Parameter) (tag TagRadios) {
 	return tag
 }
 
-func Parameter2TagSelect(p Parameter) (tag TagSelect) {
+func Parameter2TagSelect(p apidocbuilder.Parameter) (tag TagSelect) {
 	if p.Name == "" {
 		return
 	}
