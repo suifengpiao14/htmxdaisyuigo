@@ -16,7 +16,7 @@ type Radio struct {
 	ResponseStatus css.ResponseStatus
 	Color          css.Color
 	Size           css.Size
-	KVs            KVs
+	Options        Options
 }
 
 func (i *Radio) Tag() string {
@@ -80,7 +80,7 @@ func (i Radio) Html() (html htmlgo.HTML) {
 	i.Label.SetText(i.Title)
 	wrap := i.GetFormcontrol()
 	i.Label.For = i.Radio.Name
-	for _, kv := range i.KVs {
+	for _, kv := range i.Options {
 		label := i.Label.Clone()
 		checkbox := i.Radio.Clone()
 		label.SetText(kv.Label)

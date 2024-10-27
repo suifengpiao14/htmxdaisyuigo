@@ -7,11 +7,14 @@ import (
 	"github.com/suifengpiao14/htmxdaisyuigo/elements"
 )
 
-type KV struct {
-	Label string
-	Value string
+type Option struct {
+	Label    string
+	Value    string
+	Name     string `json:"name"`
+	Required bool   `json:"required"`
+	Checked  bool   `json:"checked"`
 }
-type KVs []KV
+type Options []Option
 
 type Checkbox struct {
 	Title string
@@ -22,7 +25,7 @@ type Checkbox struct {
 	ResponseStatus css.ResponseStatus
 	Color          css.Color
 	Size           css.Size
-	KVs            KVs
+	Options        Options
 }
 
 func (i *Checkbox) Tag() string {
@@ -86,7 +89,7 @@ func (i Checkbox) Html() (html htmlgo.HTML) {
 	i.Label.SetText(i.Title)
 	wrap := i.GetFormcontrol()
 	i.Label.For = i.Checkbox.Name
-	for _, kv := range i.KVs {
+	for _, kv := range i.Options {
 		label := i.Label.Clone()
 		checkbox := i.Checkbox.Clone()
 		label.SetText(kv.Label)
