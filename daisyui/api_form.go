@@ -12,31 +12,35 @@ import (
 	interattr "github.com/suifengpiao14/htmxdaisyuigo/attributes"
 )
 
-// DocApi2HtmxForm  接口文档转换成HtmxForm,后续再给HtmxForm添加一些属性、样式
-func ApiForm2HtmxForm(apiForm ApiForm, hxTarget string) HtmxForm {
-	return HtmxForm{
-		ApiForm:  apiForm,
-		HxTarget: hxTarget,
-		HxExt:    "",
-	}
-}
-
-type HtmxForm struct {
-	ApiForm
-	HxExt    string `json:"hx-ext"`
-	HxTarget string `json:"hx-target"`
-}
-
 type ApiForm struct {
 	api    apidocbuilder.Api
+	Attrs  []attributes.Attribute
 	Action string        `json:"action"`
 	Method string        `json:"method"`
 	Title  string        `json:"title"`
 	Items  []HtmlElement `json:"children"`
 }
 
+func (apiForm ApiForm) WithHtmx(hxTarget string, xhAttrs ...attributes.Attribute) ApiForm {
+	attrs := make([]attributes.Attribute, 0)
+	attrs = append(attrs, AttrHxTarget(hxTarget))
+	attrs = append(attrs, AttrHxPost(apiForm.Action))
+	attrs = append(attrs, attributes.Method(strings.ToUpper(apiForm.Method)))
+	attrs = append(attrs, xhAttrs...)
+	apiForm.Attrs = attrs
+	return apiForm
+}
+
 func (apiForm ApiForm) Tag() string {
 	return "form"
+}
+func (apiForm ApiForm) Html() (html htmlgo.HTML) {
+	htmls := make([]htmlgo.HTML, 0)
+	for _, Item := range apiForm.Items {
+		htmls = append(htmls, Item.Html())
+	}
+	form := htmlgo.Form(apiForm.Attrs, htmls...)
+	return form
 }
 
 func DocApi2ApiForm(api apidocbuilder.Api) ApiForm {
@@ -56,28 +60,6 @@ func DocApi2ApiForm(api apidocbuilder.Api) ApiForm {
 		apiForm.Items = append(apiForm.Items, submitInput)
 	}
 	return apiForm
-}
-
-func (htmxForm HtmxForm) String() (html string) {
-	return string(htmxForm.Html())
-}
-
-func (htmxForm HtmxForm) Html() (html htmlgo.HTML) {
-	attrs := make([]attributes.Attribute, 0)
-	attrs = append(attrs, AttrHxTarget(htmxForm.HxTarget))
-	attrs = append(attrs, AttrHxExt(htmxForm.HxExt))
-	attrs = append(attrs, AttrHxPost(htmxForm.Action))
-	attrs = append(attrs, attributes.Method(strings.ToUpper(htmxForm.Method)))
-	htmls := make([]htmlgo.HTML, 0)
-	for _, Item := range htmxForm.ApiForm.Items {
-		htmls = append(htmls, Item.Html())
-	}
-	if len(htmls) == 0 {
-		div := htmlgo.Div_(htmlgo.Text("无需入参数"))
-		htmls = append(htmls, div)
-	}
-	form := htmlgo.Form(attrs, htmls...)
-	return form
 }
 
 func AttrHxTarget(data interface{}, templs ...string) attributes.Attribute {
