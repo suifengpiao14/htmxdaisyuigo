@@ -10,33 +10,34 @@ import (
 
 func NewAttrs(attrs ...*attributes.Attribute) Attrs {
 	atrs := make(Attrs, 0)
-	atrs = atrs.AddRef(attrs...)
+	atrs.AddRef(attrs...)
 	return atrs
 }
 
 // Attrs 自定义属性列表 声明 为 属性引用,方便程序中增加nil
 type Attrs []*attributes.Attribute
 
-func (atrs Attrs) AddRef(attrs ...*attributes.Attribute) Attrs {
+func (atrs *Attrs) AddRef(attrs ...*attributes.Attribute) *Attrs {
 	//实现函数体,支持相同属性的更新
 	for _, attr := range attrs {
 		if attr == nil {
 			continue
 		}
 		exists := false
-		for i, at := range attrs {
+		for i, at := range *atrs {
 			if at.Name == attr.Name {
-				atrs[i] = attr
+				(*atrs)[i] = attr
+				exists = true
 				break
 			}
 		}
 		if !exists {
-			atrs = append(atrs, attr)
+			*atrs = append(*atrs, attr)
 		}
 	}
 	return atrs
 }
-func (atrs Attrs) Add(attrs ...attributes.Attribute) Attrs {
+func (atrs *Attrs) Add(attrs ...attributes.Attribute) *Attrs {
 	refs := make(Attrs, 0)
 	for _, attr := range attrs {
 		refs = append(refs, &attr)
@@ -66,7 +67,7 @@ func Attr_(name string, templs ...string) attributes.Attribute {
 // AttrHtmlGlobal html 全局属性
 type AttrHtmlGlobal struct {
 	Accesskey       string `json:"accesskey,omitempty"`       // Specifies a shortcut key to activate/focus an element
-	Class           Class  `json:"class,omitempty"`           // Specifies one or more classnames for an element (refers to a class in a style sheet)
+	ClassName       Class  `json:"class,omitempty"`           // Specifies one or more classnames for an element (refers to a class in a style sheet)
 	Contenteditable string `json:"contenteditable,omitempty"` // Specifies whether the content of an element is editable or not
 	Data            string `json:"data,omitempty"`            // Used to store custom data private to the page or application
 	Dir             string `json:"dir,omitempty"`             // Specifies the text direction for the content in an element
@@ -88,8 +89,8 @@ type AttrHtmlGlobal struct {
 
 func (a AttrHtmlGlobal) Attrs() Attrs {
 	attrs := NewAttrs(
-		Accesskey_(a.Accesskey),
-		Class.Attr((a.Class)),
+		AccessKey_(a.Accesskey),
+		Class.Attr((a.ClassName)),
 		Contenteditable_(a.Contenteditable),
 		Data_(a.Data),
 		Dir_(a.Dir),
@@ -99,7 +100,7 @@ func (a AttrHtmlGlobal) Attrs() Attrs {
 
 		Id_(a.Id),
 		Inert_(a.Inert),
-		Inputmode_(a.Inputmode),
+		InputMode_(a.Inputmode),
 		Lang_(a.Lang),
 		Popover_(a.Popover),
 		Spellcheck_(a.Spellcheck),

@@ -70,7 +70,7 @@ func (htmxForm HtmxForm) Html() (html htmlgo.HTML) {
 	attrs = append(attrs, attributes.Method(strings.ToUpper(htmxForm.Method)))
 	htmls := make([]htmlgo.HTML, 0)
 	for _, Item := range htmxForm.ApiForm.Items {
-		htmls = append(htmls, Item)
+		htmls = append(htmls, Item.Html())
 	}
 	if len(htmls) == 0 {
 		div := htmlgo.Div_(htmlgo.Text("无需入参数"))
@@ -318,7 +318,10 @@ func (tag TagButton) Html() (html htmlgo.HTML) {
 
 type HtmlElement interface {
 	Tag() string
+	Html() htmlgo.HTML
 }
+
+type RenderFn func(e HtmlElement) htmlgo.HTML
 
 func Parameter2FormItem(p apidocbuilder.Parameter) (formItem HtmlElement) {
 	if p.Name == "" {
@@ -415,6 +418,7 @@ type TagRadios struct {
 	Label    TagLabel
 	Required bool `json:"required"`
 	Radios   []TagRadio
+	renderFn RenderFn
 }
 
 func (tag TagRadios) Tag() string {

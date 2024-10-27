@@ -1449,6 +1449,8 @@ func Translate_(value string) *attributes.Attribute {
 const (
 	Input_Type_Tel           = "tel"
 	Input_Type_Text          = "text"
+	Input_Type_Checkbox      = "checkbox"
+	Input_Type_Radio         = "radio"
 	Input_Type_Email         = "email"
 	Input_Type_Password      = "password"
 	Input_Type_Number        = "number"
@@ -1516,25 +1518,25 @@ func Wrap_(value string) *attributes.Attribute {
 	return &attr
 }
 
-func Accesskey_(accesskey string) *attributes.Attribute {
-	attr := attributes.Accesskey_(accesskey)
-	return &attr
-}
 func Enterkeyhint_(enterkeyhint string) *attributes.Attribute {
-	attr := Attr_(enterkeyhint, "enterkeyhint")
+	if enterkeyhint == "" {
+		return nil
+	}
+	attr := Attr_("enterkeyhint", enterkeyhint)
 	return &attr
 }
 func Inert_(inert string) *attributes.Attribute {
-	attr := Attr_(inert, "inert")
-	return &attr
-}
-
-func Inputmode_(inputmode string) *attributes.Attribute {
-	attr := Attr_(inputmode, "inputmode")
+	if inert == "" {
+		return nil
+	}
+	attr := Attr_("inert", inert)
 	return &attr
 }
 
 func Popover_(popover string) *attributes.Attribute {
-	attr := Attr_(popover, "popover")
+	if popover == "" {
+		return nil
+	}
+	attr := Attr_("popover", popover)
 	return &attr
 }

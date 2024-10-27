@@ -1,14 +1,208 @@
 package elements
 
 import (
+	"sort"
+
 	"github.com/go-playground/validator/v10"
 	"github.com/julvo/htmlgo"
+	htmlattr "github.com/julvo/htmlgo/attributes"
 	"github.com/suifengpiao14/htmxdaisyuigo/attributes"
 )
 
 func validate(i any) (err error) {
 	validate := validator.New()
 	return validate.Struct(i)
+}
+
+type ComponentI interface {
+	Tag() string
+	SerialNumber() SerialNumber
+	SetSerialNumber(serialNumber SerialNumber)
+	Component() ComponentI
+	Class() attributes.Class
+	Attrs() attributes.Attrs
+	Children() Components
+	AddClass(classnames ...string)
+	AddAttrs(attrs ...*htmlattr.Attribute)
+	AddChildren(children ...ComponentI)
+	Html() htmlgo.HTML
+	IsNil() bool
+}
+
+type Components []ComponentI
+
+func (a Components) Html() []htmlgo.HTML {
+	sort.Sort(a)
+	htmls := make([]htmlgo.HTML, 0)
+	for _, c := range a {
+		htmls = append(htmls, c.Html())
+	}
+	return htmls
+}
+
+func (a *Components) Add(cs ...ComponentI) {
+	for _, c := range cs {
+		if c.IsNil() {
+			continue
+		}
+		*a = append(*a, c)
+	}
+
+}
+
+func (a Components) Len() int           { return len(a) }
+func (a Components) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a Components) Less(i, j int) bool { return a[i].SerialNumber() < a[j].SerialNumber() }
+
+// BasicComponent  组件基础,主要用于收集text,class 和children 方便延迟修改
+type BasicComponent struct {
+	tag          string
+	class        attributes.Class
+	text         string
+	attrs        attributes.Attrs
+	children     Components
+	serialNumber SerialNumber
+}
+
+func (i *BasicComponent) Tag() string {
+	if i.tag == "" {
+		panic("Tag required  for component ")
+	}
+	return i.tag
+
+}
+
+func (i *BasicComponent) SetTag(tag string) {
+	i.tag = tag
+
+}
+
+func (i *BasicComponent) SetSerialNumber(serialNumber SerialNumber) {
+	i.serialNumber = serialNumber
+}
+
+func (i *BasicComponent) SerialNumber() (serialNumber SerialNumber) {
+	return i.serialNumber
+}
+
+func (i *BasicComponent) Component() ComponentI {
+	panic("implement Component method")
+}
+
+func (i BasicComponent) Class() attributes.Class {
+	return i.class
+}
+func (i *BasicComponent) AddClass(classnames ...string) {
+	i.class.Add(classnames...)
+}
+func (i BasicComponent) Text() string {
+	return i.text
+}
+func (i *BasicComponent) SetText(text string) {
+	i.text = text
+}
+func (i BasicComponent) Attrs() attributes.Attrs {
+	i.attrs.AddRef(i.Class().Attr())
+	return i.attrs
+}
+func (i *BasicComponent) AddAttrs(attrs ...*htmlattr.Attribute) {
+	i.attrs = attrs
+}
+func (i BasicComponent) Children() Components {
+	return i.children
+}
+func (i *BasicComponent) AddChildren(children ...ComponentI) {
+	i.children.Add(children...)
+}
+func (i *BasicComponent) IsNil() bool {
+	panic("implement IsNil method")
+}
+
+func (i *BasicComponent) Html() htmlgo.HTML {
+	subComponents := Components{}
+	subComponents.Add(&Text{Text: i.Text()})
+	subComponents.Add(i.Children()...)
+	children := make([]htmlgo.HTML, 0)
+	sort.Sort(subComponents)
+	for _, subComponent := range subComponents {
+		children = append(children, subComponent.Html())
+	}
+	element := htmlgo.Element(i.Tag(), i.Attrs().Attrs(), children...)
+	return element
+}
+
+type SerialNumber int
+
+type Text struct {
+	serialNumber SerialNumber
+	Text         string
+}
+
+func (i *Text) Component() ComponentI {
+	return i
+}
+func (i *Text) Tag() string {
+	return ""
+}
+func (i *Text) IsNil() bool {
+	return i.Text == ""
+}
+func (i *Text) SerialNumber() SerialNumber {
+	return i.serialNumber
+}
+
+func (i *Text) SetSerialNumber(serialNumber SerialNumber) {
+	i.serialNumber = serialNumber
+}
+func (i *Text) Class() attributes.Class {
+	return attributes.Class{}
+}
+func (i *Text) AddClass(classnames ...string) {
+}
+
+func (i *Text) Attrs() attributes.Attrs {
+	return attributes.Attrs{}
+}
+func (i *Text) Children() Components {
+	return Components{}
+}
+
+func (i *Text) AddAttrs(attrs ...*htmlattr.Attribute) {
+}
+func (i *Text) AddChildren(children ...ComponentI) {
+}
+func (i *Text) Html() htmlgo.HTML {
+	return htmlgo.Text(i.Text)
+}
+
+type Checkbox struct {
+	Input
+}
+
+func (i *Checkbox) Component() ComponentI {
+	return i
+}
+
+func (i *Checkbox) Attrs() attributes.Attrs {
+	typ := htmlattr.Type_(attributes.Input_Type_Checkbox)
+	i.Input.AddAttrs(&typ)
+	return i.Input.Attrs()
+
+}
+
+type Radio struct {
+	Input
+}
+
+func (i *Radio) Component() ComponentI {
+	return i
+}
+
+func (i *Radio) Attrs() attributes.Attrs {
+	typ := htmlattr.Type_(attributes.Input_Type_Radio)
+	i.Input.AddAttrs(&typ)
+	return i.Input.Attrs()
+
 }
 
 type Input struct {
@@ -43,6 +237,21 @@ type Input struct {
 	InputMode      string `json:"inputmode,omitempty"`      // 虚拟键盘的输入模式
 	Spellcheck     bool   `json:"spellcheck,omitempty"`     // 是否检查拼写和语法
 	Title          string `json:"title,omitempty"`          // 鼠标悬停时显示的文字
+	BasicComponent
+}
+
+func (i *Input) Component() ComponentI {
+	return i
+}
+func (i *Input) Tag() string {
+	return "input"
+}
+func (i *Input) IsNil() bool {
+	return false
+}
+
+func (i Input) Clone() Input {
+	return i
 }
 
 func (i Input) Attrs() attributes.Attrs {
@@ -53,7 +262,7 @@ func (i Input) Attrs() attributes.Attrs {
 	attrs.AddRef(
 		attributes.Required_(i.Required),
 		attributes.Type_(i.Type),
-		attributes.Class.Attr((i.Class)),
+		attributes.Class.Attr((i.AttrHtmlGlobal.ClassName)),
 		attributes.Placeholder_(i.Placeholder),
 		attributes.Value_(i.Value),
 		attributes.Name_(i.Name),
@@ -84,13 +293,13 @@ func (i Input) Attrs() attributes.Attrs {
 		attributes.Title_(i.Title),
 		attributes.Id_(i.Id),
 	)
+	attrs.AddRef(i.BasicComponent.Attrs()...)
 	return attrs
 }
 
 func (i Input) Html() (html htmlgo.HTML) {
-
-	tag := htmlgo.Input(i.Attrs().Attrs())
-	return tag
+	attrs := i.Attrs()
+	return htmlgo.Input(attrs.Attrs())
 }
 
 type A struct {
@@ -470,13 +679,24 @@ type Dir struct {
 
 type Div struct {
 	attributes.AttrHtmlGlobal
-	Title           string        `json:"title,omitempty"`            // 提供额外信息的提示文本
-	AriaLabel       string        `json:"aria-label,omitempty"`       // 可访问性标签
-	AriaDescribedby string        `json:"aria-describedby,omitempty"` // 描述元素的 ID
-	AriaHidden      bool          `json:"aria-hidden,omitempty"`      // 指示元素是否可见
-	OnClick         string        `json:"onclick,omitempty"`          // 点击事件的 JavaScript 代码
-	Role            string        `json:"role,omitempty"`             // 角色属性，定义元素的语义
-	Children        []htmlgo.HTML `json:"children,omitempty"`         // 子元素
+	Title           string `json:"title,omitempty"`            // 提供额外信息的提示文本
+	AriaLabel       string `json:"aria-label,omitempty"`       // 可访问性标签
+	AriaDescribedby string `json:"aria-describedby,omitempty"` // 描述元素的 ID
+	AriaHidden      bool   `json:"aria-hidden,omitempty"`      // 指示元素是否可见
+	OnClick         string `json:"onclick,omitempty"`          // 点击事件的 JavaScript 代码
+	Role            string `json:"role,omitempty"`             // 角色属性，定义元素的语义
+	BasicComponent
+}
+
+func (d Div) IsNil() bool {
+	return false
+}
+
+func (d *Div) Component() (c ComponentI) {
+	return d
+}
+func (d Div) Tag() string {
+	return "div"
 }
 
 func (d Div) Attrs() (attrs attributes.Attrs) {
@@ -489,11 +709,13 @@ func (d Div) Attrs() (attrs attributes.Attrs) {
 		attributes.OnClick_(d.OnClick),
 		attributes.Role_(d.Role),
 	)
+	attrs.AddRef(d.BasicComponent.Attrs()...)
 	return attrs
 }
 func (d Div) Html() (html htmlgo.HTML) {
-	tag := htmlgo.Div(d.Attrs().Attrs(), d.Children...)
-	return tag
+	d.BasicComponent.SetTag(d.Tag())
+	d.BasicComponent.AddAttrs(d.Attrs()...)
+	return d.BasicComponent.Html()
 }
 
 type Dl struct {
@@ -675,7 +897,7 @@ func (f Frameset) Attrs() attributes.Attrs {
 func (f Frameset) Html() (html string) {
 	attrs := attributes.NewAttrs(
 		attributes.Id_(f.Id),
-		attributes.Class.Attr((f.Class)),
+		attributes.Class.Attr((f.ClassName)),
 		attributes.Cols_(f.Cols),
 		attributes.Rows_(f.Rows),
 	)
@@ -932,22 +1154,35 @@ type Keygen struct {
 
 type Label struct {
 	attributes.AttrHtmlGlobal
-	For      string        `json:"for,omitempty"` // 关联输入字段的 ID
-	Children []htmlgo.HTML `json:"children,omitempty"`
+	For string `json:"for,omitempty"` // 关联输入字段的 ID
+	BasicComponent
+}
+
+func (h *Label) Component() ComponentI {
+	return h
+}
+func (h *Label) Tag() (tag string) {
+	return "label"
+}
+func (h *Label) IsNil() bool {
+	return h.Text() == ""
+}
+func (h Label) Clone() Label {
+	return h
 }
 
 func (h Label) Attrs() (attrs attributes.Attrs) {
-	return h.AttrHtmlGlobal.Attrs().AddRef(
+	attrs = h.AttrHtmlGlobal.Attrs()
+	attrs.AddRef(
 		attributes.For_(h.For),
 	)
+	attrs.AddRef(h.BasicComponent.attrs...)
+	return attrs
 }
 func (h Label) Html() (html htmlgo.HTML) {
-	attrs := attributes.NewAttrs(
-		attributes.Id_(h.Id),
-		attributes.Class.Attr((h.Class)),
-	)
-	tag := htmlgo.Label(attrs.Attrs(), h.Children...)
-	return tag
+	h.BasicComponent.attrs.AddRef(h.Attrs()...)
+	h.BasicComponent.SetTag(h.Tag())
+	return h.BasicComponent.Html()
 }
 
 type Legend struct {
@@ -1189,26 +1424,47 @@ type Optgroup struct {
 }
 
 type Option struct {
-	Value    string           `json:"value,omitempty"`    // 选项的值
-	Label    string           `json:"label,omitempty"`    // 选项的标签
-	Selected bool             `json:"selected,omitempty"` // 是否选中
-	Disabled bool             `json:"disabled,omitempty"` // 是否禁用
-	Class    attributes.Class `json:"class,omitempty"`    // CSS 类名
+	attributes.AttrHtmlGlobal
+	Value    string `json:"value,omitempty"`    // 选项的值
+	Label    string `json:"label,omitempty"`    // 选项的标签
+	Selected bool   `json:"selected,omitempty"` // 是否选中
+	Disabled bool   `json:"disabled,omitempty"` // 是否禁用
+	BasicComponent
 }
 
-func (h Option) Validate() (err error) {
-	return validate(h)
-}
-func (h Option) Html() (html string) {
-	attrs := attributes.NewAttrs(
-		attributes.Value_(h.Value),
-		attributes.Label_(h.Label),
-		attributes.Selected_(h.Selected),
-		attributes.Disabled_(h.Disabled),
-		attributes.Class.Attr((h.Class)),
+func (i Option) Attrs() attributes.Attrs {
+	attrs := i.AttrHtmlGlobal.Attrs()
+	attrs.AddRef(
+		attributes.Value_(i.Value),
+		attributes.Selected_(i.Selected),
+		attributes.Disabled_(i.Disabled),
 	)
-	tag := htmlgo.Option(attrs.Attrs())
-	return string(tag)
+	attrs.AddRef(i.BasicComponent.Attrs()...)
+	return attrs
+}
+func (i *Option) Children() Components {
+	i.BasicComponent.AddChildren(&Text{Text: i.Label})
+	return i.BasicComponent.Children()
+}
+
+func (i *Option) Component() ComponentI {
+	return i
+}
+func (i *Option) Tag() string {
+	return "option"
+}
+func (i *Option) IsNil() bool {
+	return false
+}
+
+func (i Option) Clone() Option {
+	return i
+}
+
+func (i Option) Html() (html htmlgo.HTML) {
+	attrs := i.Attrs()
+	children := i.Children().Html()
+	return htmlgo.Option(attrs.Attrs(), children...)
 }
 
 type Output struct {
@@ -1393,25 +1649,43 @@ func (h Section) Html() (html string) {
 }
 
 type Select struct {
-	Name     string           `json:"name,omitempty"`     // 关联的输入字段名称
-	Multiple bool             `json:"multiple,omitempty"` // 是否多选
-	Size     int              `json:"size,omitempty"`     // 显示的选项数量
-	Class    attributes.Class `json:"class,omitempty"`    // CSS 类名
-	Children []htmlgo.HTML    `json:"children,omitempty"`
+	attributes.AttrHtmlGlobal
+	Name     string `json:"name,omitempty"`     // 关联的输入字段名称
+	Multiple bool   `json:"multiple,omitempty"` // 是否多选
+	Size     int    `json:"size,omitempty"`     // 显示的选项数量
+	BasicComponent
+	Options []Option
 }
 
-func (h Select) Validate() (err error) {
-	return validate(h)
+func (i *Select) Component() ComponentI {
+	return i
 }
-func (h Select) Html() (html string) {
-	attrs := attributes.NewAttrs(
-		attributes.Name_(h.Name),
-		attributes.Multiple_(h.Multiple),
-		attributes.Size_(h.Size),
-		attributes.Class.Attr(h.Class),
+func (i *Select) Tag() string {
+	return "select"
+}
+func (i *Select) IsNil() bool {
+	return false
+}
+
+func (i Select) Clone() Select {
+	return i
+}
+
+func (i Select) Attrs() attributes.Attrs {
+	attrs := i.AttrHtmlGlobal.Attrs()
+	attrs.AddRef(
+		attributes.Name_(i.Name),
+		attributes.Size_(i.Size),
+		attributes.Multiple_(i.Multiple),
 	)
-	tag := htmlgo.Select(attrs.Attrs(), h.Children...)
-	return string(tag)
+	attrs.AddRef(i.BasicComponent.Attrs()...)
+	return attrs
+}
+
+func (i Select) Html() (html htmlgo.HTML) {
+	attrs := i.Attrs()
+	children := i.Children().Html()
+	return htmlgo.Section(attrs.Attrs(), children...)
 }
 
 type Small struct {
@@ -1458,21 +1732,29 @@ func (h Spacer) Html() (html string) {
 }
 
 type Span struct {
-	Id       string           `json:"id,omitempty"`    // 元素的唯一标识符
-	Class    attributes.Class `json:"class,omitempty"` // CSS 类名
-	Children []htmlgo.HTML    `json:"children,omitempty"`
+	BasicComponent
+	attributes.AttrHtmlGlobal
 }
 
-func (h Span) Validate() (err error) {
-	return validate(h)
+func (i *Span) Component() ComponentI {
+	return i
 }
-func (h Span) Html() (html string) {
-	attrs := attributes.NewAttrs(
-		attributes.Id_(h.Id),
-		attributes.Class.Attr((h.Class)),
-	)
-	tag := htmlgo.Span(attrs.Attrs(), h.Children...)
-	return string(tag)
+func (i *Span) Tag() string {
+	return ""
+}
+func (i *Span) IsNil() bool {
+	return false
+}
+
+func (i Span) Attrs() attributes.Attrs {
+	attrs := i.AttrHtmlGlobal.Attrs()
+	attrs.AddRef(i.BasicComponent.Attrs()...)
+	return attrs
+}
+func (i Span) Html() (html htmlgo.HTML) {
+	attrs := i.Attrs()
+	i.BasicComponent.AddAttrs(attrs...)
+	return i.BasicComponent.Html()
 }
 
 type Strike struct {
@@ -1568,6 +1850,17 @@ type Textarea struct {
 	Cols        int    `json:"cols,omitempty"`        // 列数
 	Placeholder string `json:"placeholder,omitempty"` // 提示文字
 	Required    bool   `json:"required,omitempty"`    // 是否为必填字段
+	BasicComponent
+}
+
+func (i *Textarea) Component() ComponentI {
+	return i
+}
+func (i *Textarea) Tag() string {
+	return "textarea"
+}
+func (i *Textarea) IsNil() bool {
+	return false
 }
 
 func (t Textarea) Attrs() attributes.Attrs {
@@ -1581,9 +1874,9 @@ func (t Textarea) Attrs() attributes.Attrs {
 	)
 	return attrs
 }
-func (t Textarea) Html() (html string) {
+func (t Textarea) Html() (html htmlgo.HTML) {
 	tag := htmlgo.Textarea(t.Attrs().Attrs())
-	return string(tag)
+	return tag
 }
 
 type Tfoot struct {
