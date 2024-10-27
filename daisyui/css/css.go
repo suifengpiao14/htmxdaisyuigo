@@ -1,4 +1,10 @@
-package daisyui
+package css
+
+import "strings"
+
+const (
+	Formcontrol = "form-control"
+)
 
 type Background string
 
@@ -58,3 +64,8 @@ func (b Border) Combine(prefix string) (className string) {
 const (
 	Border_bordered Border = "bordered"
 )
+
+func CombineClassName(segments ...string) (className string) {
+	className = strings.Join(segments, "-")
+	return className
+}
